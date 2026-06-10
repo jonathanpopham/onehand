@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0d1117">
+<title>onehand</title>
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --border: #30363d;
+    --fg: #e6edf3; --dim: #8b949e; --accent: #2f81f7;
+    --green: #3fb950; --red: #f85149;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    background: var(--bg); color: var(--fg);
+    font-family: -apple-system, Roboto, "Segoe UI", sans-serif;
+    display: flex; flex-direction: column;
+    touch-action: none; user-select: none; -webkit-user-select: none;
+  }
+  #status {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; font-size: 13px; color: var(--dim);
+    background: var(--panel); border-bottom: 1px solid var(--border);
+    padding-top: max(8px, env(safe-area-inset-top));
+  }
+  #dot { width: 9px; height: 9px; border-radius: 50%; background: var(--red); flex: none; }
+  #dot.on { background: var(--green); }
+  #pad {
+    flex: 1; position: relative;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #pad .hint { color: var(--dim); font-size: 13px; text-align: center; line-height: 1.8; pointer-events: none; }
+  #pad.drag-armed { background: rgba(47,129,247,.08); }
+  #transcript {
+    position: absolute; left: 10px; right: 10px; bottom: 10px;
+    background: rgba(22,27,34,.92); border: 1px solid var(--border);
+    border-radius: 10px; padding: 8px 12px; font-size: 14px;
+    color: var(--fg); display: none; pointer-events: none; max-height: 30%;
+    overflow: hidden;
+  }
+  #transcript .interim { color: var(--dim); }
+  .bar {
+    display: flex; gap: 6px; padding: 6px;
+    background: var(--panel); border-top: 1px solid var(--border);
+  }
+  .bar:last-child { padding-bottom: calc(max(6px, env(safe-area-inset-bottom)) + 24px); }
+  button {
+    flex: 1; min-height: 110px; border: 1px solid var(--border); border-radius: 14px;
+    background: #21262d; color: var(--fg); font-size: 26px; font-weight: 500;
+    touch-action: manipulation;
+  }
+  button:active { background: #30363d; }
+  #mic { flex: 1; font-size: 44px; }
+  #mic.live { background: var(--red); border-color: var(--red); color: #fff; }
+  #enter {
+    flex: 1; background: var(--accent); border-color: var(--accent);
+    color: #fff; font-size: 44px; font-weight: 700;
+  }
+  #more {
+    flex: none; width: 64px; font-size: 26px; color: var(--dim);
+  }
+  #extrarow, #editrow { display: none; }
+  #extrarow.open, #editrow.open { display: flex; }
+  #extrarow button, #editrow button { min-height: 72px; font-size: 22px; }
+  #editrow button { font-size: 17px; }
+  #typerow { display: none; }
+  #typerow.open { display: flex; }
+  #typebox {
+    flex: 1; min-height: 52px; border: 1px solid var(--border); border-radius: 10px;
+    background: #0d1117; color: var(--fg); font-size: 16px; padding: 0 12px;
+    user-select: text; -webkit-user-select: text;
+  }
+  #send { flex: none; width: 76px; background: var(--accent); border-color: var(--accent); color: #fff; }
+  .small { font-size: 13px; color: var(--dim); }
+</style>
+</head>
+<body>
+  <div id="status"><div id="dot"></div><span id="statustext">connecting…</span></div>
+
+  <div id="pad">
+    <div class="hint">
+      trackpad<br>
+      <span class="small">
+        1 finger: move · tap: click<br>
+        2 fingers: scroll · 2-finger tap: right-click<br>
+        double-tap &amp; hold: drag
+      </span>
+    </div>
+    <div id="transcript"></div>
+  </div>
+
+  <div class="bar" id="typerow">
+    <input id="typebox" type="text" autocomplete="off" autocapitalize="sentences"
+           placeholder="type here, Send pushes to Mac">
+    <button id="send">Send</button>
+  </div>
+
+  <div class="bar" id="editrow">
+    <button data-key="cmd-a">Select all</button>
+    <button data-key="cmd-c">Copy</button>
+    <button data-key="cmd-v">Paste</button>
+    <button data-key="cmd-x">Cut</button>
+    <button data-key="cmd-z">Undo</button>
+  </div>
+
+  <div class="bar" id="extrarow">
+    <button data-key="backspace">⌫</button>
+    <button data-key="ctrl-c">^C</button>
+    <button data-key="esc">esc</button>
+    <button data-key="tab">⇥</button>
+    <button data-key="up">↑</button>
+    <button data-key="down">↓</button>
+    <button id="kb">⌨️</button>
+  </div>
+
+  <div class="bar">
+    <button id="mic">🎤</button>
+    <button id="more">⋯</button>
+    <button id="enter" data-key="enter">↵</button>
+  </div>
+
+<script>
+"use strict";
+const qs = new URLSearchParams(location.search);
+const PIN = qs.get("pin") || "";
+const dot = document.getElementById("dot");
+const statustext = document.getElementById("statustext");
+
+let ws = null, wsOpen = false;
+function connect() {
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  ws = new WebSocket(`${proto}://${location.host}/ws?pin=${PIN}`);
+  ws.onopen = () => { wsOpen = true; dot.classList.add("on"); statustext.textContent = "connected"; };
+  ws.onclose = () => {
+    wsOpen = false; dot.classList.remove("on");
+    statustext.textContent = "disconnected, retrying…";
+    setTimeout(connect, 1500);
+  };
+  ws.onerror = () => ws.close();
+}
+connect();
+const send = (o) => { if (wsOpen) ws.send(JSON.stringify(o)); };
+
+/* ---------------- trackpad ---------------- */
+const pad = document.getElementById("pad");
+const SPEED = 2.2, SCROLL_SPEED = 3.0;
+const TAP_MS = 220, TAP_SLOP = 12, DOUBLE_MS = 300;
+
+let touches = new Map();      // id -> {x, y}
+let startT = 0, startN = 0, moved = 0;
+let lastTapT = 0, dragging = false, dragTimer = null;
+
+pad.addEventListener("touchstart", (e) => {
+  e.preventDefault();
+  for (const t of e.changedTouches) touches.set(t.identifier, { x: t.clientX, y: t.clientY });
+  if (touches.size > startN) startN = touches.size;
+  if (touches.size === 1 && e.touches.length === 1) {
+    startT = Date.now(); moved = 0;
+    // double-tap-and-hold -> drag
+    if (Date.now() - lastTapT < DOUBLE_MS) {
+      dragTimer = setTimeout(() => {
+        dragging = true; pad.classList.add("drag-armed"); send({ t: "down" });
+        if (navigator.vibrate) navigator.vibrate(30);
+      }, 130);
+    }
+  }
+}, { passive: false });
+
+pad.addEventListener("touchmove", (e) => {
+  e.preventDefault();
+  if (e.touches.length === 1) {
+    const t = e.touches[0], p = touches.get(t.identifier);
+    if (!p) return;
+    const dx = t.clientX - p.x, dy = t.clientY - p.y;
+    moved += Math.abs(dx) + Math.abs(dy);
+    if (moved > TAP_SLOP && dragTimer) { clearTimeout(dragTimer); dragTimer = null; }
+    touches.set(t.identifier, { x: t.clientX, y: t.clientY });
+    send({ t: "move", dx: dx * SPEED, dy: dy * SPEED });
+  } else if (e.touches.length === 2) {
+    const t = e.touches[0], p = touches.get(t.identifier);
+    if (!p) return;
+    const dy = t.clientY - p.y, dx = t.clientX - p.x;
+    moved += Math.abs(dx) + Math.abs(dy);
+    for (const tt of e.touches) touches.set(tt.identifier, { x: tt.clientX, y: tt.clientY });
+    send({ t: "scroll", dx: -dx * SCROLL_SPEED, dy: dy * SCROLL_SPEED });
+  }
+}, { passive: false });
+
+pad.addEventListener("touchend", (e) => {
+  e.preventDefault();
+  for (const t of e.changedTouches) touches.delete(t.identifier);
+  if (e.touches.length > 0) return;     // wait for all fingers up
+
+  if (dragTimer) { clearTimeout(dragTimer); dragTimer = null; }
+  if (dragging) {
+    dragging = false; pad.classList.remove("drag-armed"); send({ t: "up" });
+  } else {
+    const quick = Date.now() - startT < TAP_MS && moved < TAP_SLOP;
+    if (quick && startN === 1) { send({ t: "click", b: "left" }); lastTapT = Date.now(); }
+    else if (quick && startN === 2) send({ t: "click", b: "right" });
+  }
+  startN = 0;
+}, { passive: false });
+
+pad.addEventListener("touchcancel", () => {
+  touches.clear(); startN = 0;
+  if (dragTimer) { clearTimeout(dragTimer); dragTimer = null; }
+  if (dragging) { dragging = false; pad.classList.remove("drag-armed"); send({ t: "up" }); }
+}, { passive: false });
+
+/* ---------------- dictation (Web Speech API) ---------------- */
+const micBtn = document.getElementById("mic");
+const transcript = document.getElementById("transcript");
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null, listening = false, wantListening = false;
+
+let sentFinal = "";   // cumulative final text already typed on the Mac
+
+function startRec() {
+  rec = new SR();
+  rec.lang = navigator.language || "en-US";
+  rec.continuous = true;
+  rec.interimResults = true;
+  sentFinal = "";
+  rec.onresult = (e) => {
+    // Android Chrome re-delivers the cumulative transcript as a NEW final
+    // result entry each time. The latest final entry is the source of truth;
+    // diff it against what we've already typed and send only the new words.
+    let interim = "", lastFinal = "";
+    for (let i = 0; i < e.results.length; i++) {
+      const r = e.results[i];
+      if (r.isFinal) lastFinal = r[0].transcript.trim();
+      else interim += r[0].transcript;
+    }
+    if (lastFinal) {
+      let delta;
+      if (lastFinal === sentFinal) delta = "";                       // exact repeat
+      else if (lastFinal.startsWith(sentFinal)) delta = lastFinal.slice(sentFinal.length);
+      else if (sentFinal.endsWith(lastFinal)) delta = "";            // repeated tail
+      else delta = lastFinal;                                        // new utterance
+      delta = delta.trim();
+      if (delta) send({ t: "text", s: delta + " " });
+      sentFinal = lastFinal;
+    }
+    transcript.style.display = interim ? "block" : "none";
+    transcript.innerHTML = `<span class="interim"></span>`;
+    transcript.firstChild.textContent = interim;
+  };
+  rec.onend = () => {           // Chrome times out; auto-restart while active
+    sentFinal = "";             // results array resets on restart
+    if (wantListening) { try { rec.start(); } catch (_) {} }
+    else setLive(false);
+  };
+  rec.onerror = (e) => {
+    if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+      wantListening = false; setLive(false);
+      statustext.textContent = "mic permission denied";
+    }
+  };
+  rec.start();
+}
+
+function setLive(on) {
+  listening = on;
+  micBtn.classList.toggle("live", on);
+  micBtn.textContent = on ? "🔴" : "🎤";
+  if (!on) transcript.style.display = "none";
+}
+
+micBtn.addEventListener("click", () => {
+  if (!SR) {
+    statustext.textContent = "no speech API, use ⌨️ + keyboard mic";
+    document.getElementById("typerow").classList.add("open");
+    return;
+  }
+  if (listening) { wantListening = false; try { rec.stop(); } catch (_) {} setLive(false); }
+  else { wantListening = true; setLive(true); startRec(); }
+});
+
+/* ---------------- typing fallback ---------------- */
+const typerow = document.getElementById("typerow");
+const typebox = document.getElementById("typebox");
+document.getElementById("kb").addEventListener("click", () => {
+  typerow.classList.toggle("open");
+  if (typerow.classList.contains("open")) typebox.focus();
+});
+function pushText() {
+  if (typebox.value) { send({ t: "text", s: typebox.value }); typebox.value = ""; }
+}
+document.getElementById("send").addEventListener("click", pushText);
+typebox.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); pushText(); send({ t: "key", k: "enter" }); }
+});
+
+/* ---------------- extra keys layer ---------------- */
+document.getElementById("more").addEventListener("click", () => {
+  document.getElementById("extrarow").classList.toggle("open");
+  document.getElementById("editrow").classList.toggle("open");
+});
+
+/* ---------------- key buttons (with hold-to-repeat) ---------------- */
+const REPEAT_DELAY = 350;   // ms before repeat kicks in
+const REPEAT_RATE = 60;     // ms between repeats while held
+const REPEATABLE = new Set(["backspace", "left", "right", "up", "down", "space"]);
+
+for (const b of document.querySelectorAll("button[data-key]")) {
+  const key = b.dataset.key;
+  let holdTimer = null, repTimer = null, fired = false;
+
+  const startHold = (e) => {
+    e.preventDefault();
+    fired = false;
+    send({ t: "key", k: key });
+    fired = true;
+    if (!REPEATABLE.has(key)) return;
+    holdTimer = setTimeout(() => {
+      repTimer = setInterval(() => send({ t: "key", k: key }), REPEAT_RATE);
+      if (navigator.vibrate) navigator.vibrate(15);
+    }, REPEAT_DELAY);
+  };
+  const endHold = (e) => {
+    if (e) e.preventDefault();
+    clearTimeout(holdTimer); holdTimer = null;
+    clearInterval(repTimer); repTimer = null;
+  };
+
+  b.addEventListener("touchstart", startHold, { passive: false });
+  b.addEventListener("touchend", endHold, { passive: false });
+  b.addEventListener("touchcancel", endHold, { passive: false });
+  // mouse fallback for desktop testing
+  b.addEventListener("mousedown", (e) => { if (e.button === 0) startHold(e); });
+  b.addEventListener("mouseup", endHold);
+  b.addEventListener("mouseleave", endHold);
+  // swallow the synthetic click that follows touchend (we already sent the key)
+  b.addEventListener("click", (e) => { e.preventDefault(); });
+}
+</script>
+</body>
+</html>
