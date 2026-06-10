@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- stylized open hand: palm + thumb -->
+    <group android:translateX="27" android:translateY="25">
+        <!-- fingers -->
+        <path android:fillColor="#2f81f7"
+            android:pathData="M10,28 v-16 a3,3 0 0 1 6,0 v14 h2 v-20 a3,3 0 0 1 6,0 v20 h2 v-18 a3,3 0 0 1 6,0 v18 h2 v-13 a3,3 0 0 1 6,0 v22 c0,10 -6,17 -15,17 c-8,0 -12,-4 -16,-12 l-5,-10 a3,3 0 0 1 5,-3 z"/>
+    </group>
+</vector>

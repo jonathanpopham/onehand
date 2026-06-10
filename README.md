@@ -38,6 +38,13 @@ onehand bridges the gap with the two things you actually need:
 
 ## Quick start
 
+### Option A: apps (easiest)
+
+- Mac: download `onehand-mac.zip` from the [latest release](https://github.com/jonathanpopham/onehand/releases/latest), or clone and run `./scripts/build_mac_app.sh`. A ✋ icon appears in the menu bar with Start/Stop, Copy link, a QR code for pairing, and Start at login.
+- Android: install `onehand.apk` from the [latest release](https://github.com/jonathanpopham/onehand/releases/latest) (sideload; enable "install unknown apps" for your browser). Open it, type the address shown on the Mac, tap Connect. It remembers the Mac and grants the mic automatically.
+
+### Option B: no install on the phone (plain browser)
+
 ```bash
 git clone https://github.com/jonathanpopham/onehand.git
 cd onehand
@@ -104,10 +111,14 @@ audio-streaming route and other trade-offs.
 ## Project layout
 
 ```
-server.py            aiohttp web + WebSocket server
-input_mac.py         Quartz event synthesis (mouse, scroll, keys, unicode typing)
-static/index.html    the entire phone UI (vanilla JS, no build step)
-scripts/make_certs.sh  self-signed cert generator
+server.py              aiohttp web + WebSocket server
+input_mac.py           Quartz event synthesis (mouse, scroll, keys, unicode typing)
+menubar.py             macOS menu bar app (rumps): start/stop, QR pairing, login item
+static/index.html      the entire phone UI (vanilla JS, no build step)
+android/               Android WebView app (pairing screen + mic permission handling)
+scripts/make_certs.sh    self-signed cert generator
+scripts/build_mac_app.sh build onehand.app bundle
+scripts/build_android.sh build the APK
 ```
 
 ## License

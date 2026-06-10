@@ -1,3 +1,6 @@
 aiohttp>=3.9
 pyobjc-framework-Quartz>=10.0
 pyobjc-framework-ApplicationServices>=10.0
+rumps>=0.4
+qrcode>=7.0
+pillow>=10.0

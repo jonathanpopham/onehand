@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0d1117">
+
+    <WebView
+        android:id="@+id/web"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/pair_screen"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="32dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="✋ onehand"
+            android:textColor="#e6edf3"
+            android:textSize="34sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="control your Mac with one hand"
+            android:textColor="#8b949e"
+            android:textSize="15sp"
+            android:layout_marginBottom="32dp" />
+
+        <EditText
+            android:id="@+id/addr"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:hint="192.168.1.214:8741/?pin=1234"
+            android:textColorHint="#484f58"
+            android:textColor="#e6edf3"
+            android:textSize="16sp"
+            android:inputType="textUri"
+            android:background="#161b22"
+            android:padding="14dp"
+            android:layout_marginBottom="16dp" />
+
+        <Button
+            android:id="@+id/connect"
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:text="Connect"
+            android:textSize="18sp"
+            android:backgroundTint="#2f81f7"
+            android:textColor="#ffffff"
+            android:layout_marginBottom="8dp" />
+
+        <Button
+            android:id="@+id/forget"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="Forget saved Mac"
+            android:textSize="14sp"
+            android:backgroundTint="#21262d"
+            android:textColor="#8b949e"
+            android:layout_marginBottom="16dp" />
+
+        <TextView
+            android:id="@+id/status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="#f85149"
+            android:textSize="14sp"
+            android:gravity="center" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="on your Mac: click the ✋ menu bar icon and copy the link, or run python server.py and type the address it prints"
+            android:textColor="#484f58"
+            android:textSize="13sp"
+            android:gravity="center" />
+    </LinearLayout>
+</FrameLayout>
