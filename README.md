@@ -40,7 +40,7 @@ onehand bridges the gap with the two things you actually need:
 
 ### Option A: apps (easiest)
 
-- Mac: download `onehand-mac.zip` from the [latest release](https://github.com/jonathanpopham/onehand/releases/latest), or clone and run `./scripts/build_mac_app.sh`. A ✋ icon appears in the menu bar with Start/Stop, Copy link, a QR code for pairing, and Start at login.
+- Mac: clone the repo, then `pip install -r requirements.txt && ./scripts/build_mac_app.sh` and open `dist/onehand.app`. A ✋ icon appears in the menu bar with Start/Stop, Copy link, a QR code for pairing, and Start at login.
 - Android: install `onehand.apk` from the [latest release](https://github.com/jonathanpopham/onehand/releases/latest) (sideload; enable "install unknown apps" for your browser). Open it, type the address shown on the Mac, tap Connect. It remembers the Mac and grants the mic automatically.
 
 ### Option B: no install on the phone (plain browser)
