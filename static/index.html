@@ -184,7 +184,7 @@ pad.addEventListener("touchmove", (e) => {
     const dy = t.clientY - p.y, dx = t.clientX - p.x;
     moved += Math.abs(dx) + Math.abs(dy);
     for (const tt of e.touches) touches.set(tt.identifier, { x: tt.clientX, y: tt.clientY });
-    send({ t: "scroll", dx: -dx * SCROLL_SPEED, dy: dy * SCROLL_SPEED });
+    send({ t: "scroll", dx: dx * SCROLL_SPEED, dy: -dy * SCROLL_SPEED });
   }
 }, { passive: false });
 
