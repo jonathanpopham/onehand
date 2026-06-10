@@ -13,9 +13,10 @@ phone (browser) --- Wi-Fi / WebSocket ---> Mac (Python server) ---> Quartz mouse
 
 ## Why
 
-Feeding a baby can pin you to the couch for 2 hours at a time with exactly one
-hand free. That hand has a phone in it. The Mac is across the room on the TV.
-onehand bridges the gap with the two things you actually need:
+After a feed, a newborn sleeps on you, and you're pinned to the couch for up
+to two hours with exactly one hand free. That hand has a phone in it. The Mac
+is across the room on the TV. onehand bridges the gap with the two things you
+actually need:
 
 1. A mouse (trackpad with tap, right-click, scroll, drag)
 2. Dictation (speak into the phone, text appears on the Mac)
@@ -42,6 +43,17 @@ onehand bridges the gap with the two things you actually need:
 
 - Mac: clone the repo, then `pip install -r requirements.txt && ./scripts/build_mac_app.sh` and open `dist/onehand.app`. A ✋ icon appears in the menu bar with Start/Stop, Copy link, a QR code for pairing, and Start at login.
 - Android: install `onehand.apk` from the [latest release](https://github.com/jonathanpopham/onehand/releases/latest) (sideload; enable "install unknown apps" for your browser). Open it, type the address shown on the Mac, tap Connect. It remembers the Mac and grants the mic automatically.
+
+### iPhone / iPad
+
+No app needed. Open the server URL in Safari, accept the certificate warning,
+then Share -> Add to Home Screen for a fullscreen app-like icon.
+
+- Trackpad, buttons, and typing work in Safari.
+- Dictation: iOS Safari's speech recognition can be unreliable in continuous
+  mode. If the 🎤 button misbehaves, use the ⌨️ panel and tap the mic on the
+  iOS keyboard instead. Apple's dictation fills the box and Send pushes the
+  text to the Mac.
 
 ### Option B: no install on the phone (plain browser)
 

@@ -14,10 +14,29 @@ android {
         versionName "0.1.0"
     }
 
+    // Play Store signing: set these env vars (see scripts/build_android.sh)
+    def ksFile = System.getenv("ONEHAND_KEYSTORE")
+    def ksPass = System.getenv("ONEHAND_KEYSTORE_PASS")
+
+    signingConfigs {
+        if (ksFile != null && ksPass != null) {
+            release {
+                storeFile file(ksFile)
+                storePassword ksPass
+                keyAlias "onehand"
+                keyPassword ksPass
+            }
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
-            signingConfig signingConfigs.debug
+            if (ksFile != null && ksPass != null) {
+                signingConfig signingConfigs.release
+            } else {
+                signingConfig signingConfigs.debug
+            }
         }
     }
 
