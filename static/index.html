@@ -345,6 +345,15 @@ micBtn.addEventListener("click", () => {
   else { wantListening = true; setLive(true); startRec(); }
 });
 
+/* ---------------- enter key stops transcription ---------------- */
+document.getElementById("enter").addEventListener("touchstart", (e) => {
+  if (listening) {
+    wantListening = false;
+    try { rec.stop(); } catch (_) {}
+    setLive(false);
+  }
+});
+
 /* ---------------- typing fallback ---------------- */
 const typerow = document.getElementById("typerow");
 const typebox = document.getElementById("typebox");
