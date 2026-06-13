@@ -39,13 +39,8 @@
     border-left: 1px solid var(--border);
     background: linear-gradient(90deg, transparent 0%, rgba(47,129,247,.06) 100%);
   }
-  .scroll-zone-left {
-    left: 0; top: 0; width: 38px; height: 100%;
-    border-right: 1px solid var(--border);
-    background: linear-gradient(270deg, transparent 0%, rgba(47,129,247,.06) 100%);
-  }
   .scroll-zone-top {
-    left: 38px; top: 0; height: 38px; width: calc(100% - 76px);
+    left: 0; top: 0; height: 38px; width: calc(100% - 38px);
     border-bottom: 1px solid var(--border);
     background: linear-gradient(180deg, rgba(47,129,247,.06) 0%, transparent 100%);
   }
@@ -98,7 +93,6 @@
 
   <div id="pad">
     <div class="scroll-zone scroll-zone-right" id="szr"></div>
-    <div class="scroll-zone scroll-zone-left" id="szl"></div>
     <div class="scroll-zone scroll-zone-top" id="szt"></div>
     <div class="hint">
       trackpad<br>
@@ -180,7 +174,7 @@ pad.addEventListener("touchstart", (e) => {
   for (const t of e.changedTouches) {
     const el = document.elementFromPoint(t.clientX, t.clientY);
     if (el && el.classList.contains("scroll-zone")) {
-      const zone = el.id === "szr" ? "right" : el.id === "szl" ? "left" : "top";
+      const zone = el.id === "szr" ? "right" : "top";
       scrollTouches.set(t.identifier, { zone, startX: t.clientX, startY: t.clientY });
       el.classList.add("active");
       touches.delete(t.identifier);  // don't let scroll-zone touches pollute trackpad logic
@@ -206,7 +200,7 @@ pad.addEventListener("touchmove", (e) => {
     const st = scrollTouches.get(t.identifier);
     if (!st) continue;
     const dy = t.clientY - st.startY, dx = t.clientX - st.startX;
-    if (st.zone === "right" || st.zone === "left") send({ t: "scroll", dx: 0, dy: -dy * 3.0 });
+    if (st.zone === "right") send({ t: "scroll", dx: 0, dy: -dy * 3.0 });
     else send({ t: "scroll", dx: dx * 3.0, dy: 0 });
     st.startY = t.clientY;
     st.startX = t.clientX;
@@ -238,7 +232,7 @@ pad.addEventListener("touchend", (e) => {
     const st = scrollTouches.get(t.identifier);
     if (st) {
       scrollTouches.delete(t.identifier);
-      const el = document.getElementById(st.zone === "right" ? "szr" : st.zone === "left" ? "szl" : "szt");
+      const el = document.getElementById(st.zone === "right" ? "szr" : "szt");
       if (el) el.classList.remove("active");
     }
   }
@@ -259,7 +253,7 @@ pad.addEventListener("touchcancel", () => {
   touches.clear(); startN = 0;
   // scroll-zone cleanup
   for (const [id, st] of scrollTouches) {
-    const el = document.getElementById(st.zone === "right" ? "szr" : st.zone === "left" ? "szl" : "szt");
+    const el = document.getElementById(st.zone === "right" ? "szr" : "szt");
     if (el) el.classList.remove("active");
   }
   scrollTouches.clear();
