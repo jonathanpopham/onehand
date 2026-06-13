@@ -346,15 +346,9 @@ typebox.addEventListener("keydown", (e) => {
 });
 
 /* ---------------- extra keys layer ---------------- */
-const moreBtn = document.getElementById("more");
-const extrarow = document.getElementById("extrarow");
-const editrow = document.getElementById("editrow");
-moreBtn.addEventListener("click", () => {
-  const wasOpen = extrarow.classList.contains("open");
-  extrarow.classList.toggle("open");
-  editrow.classList.toggle("open");
-  // close typerow only when closing extras, not when opening them
-  if (wasOpen) typerow.classList.remove("open");
+document.getElementById("more").addEventListener("click", () => {
+  document.getElementById("extrarow").classList.toggle("open");
+  document.getElementById("editrow").classList.toggle("open");
 });
 
 /* ---------------- key buttons (with hold-to-repeat) ---------------- */
