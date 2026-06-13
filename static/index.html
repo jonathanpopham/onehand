@@ -25,6 +25,8 @@
     background: var(--panel); border-bottom: 1px solid var(--border);
     padding-top: max(8px, env(safe-area-inset-top));
   }
+  #restartbtn { margin-left: auto; font-size: 10px; color: var(--dim); cursor: pointer; }
+  #restartbtn:active { color: var(--accent); }
   #dot { width: 9px; height: 9px; border-radius: 50%; background: var(--red); flex: none; }
   #dot.on { background: var(--green); }
   #pad {
@@ -33,6 +35,23 @@
   }
   #pad .hint { color: var(--dim); font-size: 13px; text-align: center; line-height: 1.8; pointer-events: none; }
   #pad.drag-armed { background: rgba(47,129,247,.08); }
+  .scroll-zone { position: absolute; z-index: 5; }
+  .scroll-zone-right {
+    right: 0; top: 0; width: 38px; height: 100%;
+    border-left: 1px solid var(--border);
+    background: linear-gradient(90deg, transparent 0%, rgba(47,129,247,.06) 100%);
+  }
+  .scroll-zone-left {
+    left: 0; top: 0; width: 38px; height: 100%;
+    border-right: 1px solid var(--border);
+    background: linear-gradient(270deg, transparent 0%, rgba(47,129,247,.06) 100%);
+  }
+  .scroll-zone-top {
+    left: 38px; top: 0; height: 38px; width: calc(100% - 76px);
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, rgba(47,129,247,.06) 0%, transparent 100%);
+  }
+  .scroll-zone:active, .scroll-zone.active { background: rgba(47,129,247,.18); }
   #transcript {
     position: absolute; left: 10px; right: 10px; bottom: 10px;
     background: rgba(22,27,34,.92); border: 1px solid var(--border);
@@ -77,9 +96,12 @@
 </style>
 </head>
 <body>
-  <div id="status"><div id="dot"></div><span id="statustext">connecting…</span></div>
+  <div id="status"><div id="dot"></div><span id="statustext">connecting…</span><span id="restartbtn"> restart</span></div>
 
   <div id="pad">
+    <div class="scroll-zone scroll-zone-right" id="szr"></div>
+    <div class="scroll-zone scroll-zone-left" id="szl"></div>
+    <div class="scroll-zone scroll-zone-top" id="szt"></div>
     <div class="hint">
       trackpad<br>
       <span class="small">
@@ -129,6 +151,7 @@ const dot = document.getElementById("dot");
 const statustext = document.getElementById("statustext");
 
 let ws = null, wsOpen = false;
+const scrollTouches = new Map();
 function connect() {
   const proto = location.protocol === "https:" ? "wss" : "ws";
   ws = new WebSocket(`${proto}://${location.host}/ws?pin=${PIN}`);
@@ -143,6 +166,12 @@ function connect() {
 connect();
 const send = (o) => { if (wsOpen) ws.send(JSON.stringify(o)); };
 
+/* ---------------- phone-side server restart ---------------- */
+document.getElementById("restartbtn").addEventListener("click", () => {
+  statustext.textContent = "restarting server…";
+  fetch(`/restart?pin=${PIN}`).catch(() => {});
+});
+
 /* ---------------- trackpad ---------------- */
 const pad = document.getElementById("pad");
 const SPEED = 2.2, SCROLL_SPEED = 3.0;
@@ -155,8 +184,18 @@ let lastTapT = 0, dragging = false, dragTimer = null;
 pad.addEventListener("touchstart", (e) => {
   e.preventDefault();
   for (const t of e.changedTouches) touches.set(t.identifier, { x: t.clientX, y: t.clientY });
+  // scroll-zone: claim touches that land on the edge strips
+  for (const t of e.changedTouches) {
+    const el = document.elementFromPoint(t.clientX, t.clientY);
+    if (el && el.classList.contains("scroll-zone")) {
+      const zone = el.id === "szr" ? "right" : el.id === "szl" ? "left" : "top";
+      scrollTouches.set(t.identifier, { zone, startX: t.clientX, startY: t.clientY });
+      el.classList.add("active");
+      touches.delete(t.identifier);  // isolate from trackpad logic
+    }
+  }
   if (touches.size > startN) startN = touches.size;
-  if (touches.size === 1 && e.touches.length === 1) {
+  if (touches.size === 1) {
     startT = Date.now(); moved = 0;
     // double-tap-and-hold -> drag
     if (Date.now() - lastTapT < DOUBLE_MS) {
@@ -170,20 +209,32 @@ pad.addEventListener("touchstart", (e) => {
 
 pad.addEventListener("touchmove", (e) => {
   e.preventDefault();
-  if (e.touches.length === 1) {
-    const t = e.touches[0], p = touches.get(t.identifier);
+  // scroll-zone touches: send scroll events (no early return — let trackpad also process)
+  for (const t of e.changedTouches) {
+    const st = scrollTouches.get(t.identifier);
+    if (!st) continue;
+    const dy = t.clientY - st.startY, dx = t.clientX - st.startX;
+    if (st.zone === "right" || st.zone === "left") send({ t: "scroll", dx: 0, dy: -dy * 3.0 });
+    else send({ t: "scroll", dx: dx * 3.0, dy: 0 });
+    st.startY = t.clientY;
+    st.startX = t.clientX;
+  }
+  // trackpad-only touch count (scroll-zone touches are removed from `touches`)
+  const trackTouches = [...e.touches].filter(t => touches.has(t.identifier));
+  if (trackTouches.length === 1) {
+    const t = trackTouches[0], p = touches.get(t.identifier);
     if (!p) return;
     const dx = t.clientX - p.x, dy = t.clientY - p.y;
     moved += Math.abs(dx) + Math.abs(dy);
     if (moved > TAP_SLOP && dragTimer) { clearTimeout(dragTimer); dragTimer = null; }
     touches.set(t.identifier, { x: t.clientX, y: t.clientY });
     send({ t: "move", dx: dx * SPEED, dy: dy * SPEED });
-  } else if (e.touches.length === 2) {
-    const t = e.touches[0], p = touches.get(t.identifier);
+  } else if (trackTouches.length === 2) {
+    const t = trackTouches[0], p = touches.get(t.identifier);
     if (!p) return;
     const dy = t.clientY - p.y, dx = t.clientX - p.x;
     moved += Math.abs(dx) + Math.abs(dy);
-    for (const tt of e.touches) touches.set(tt.identifier, { x: tt.clientX, y: tt.clientY });
+    for (const tt of trackTouches) touches.set(tt.identifier, { x: tt.clientX, y: tt.clientY });
     send({ t: "scroll", dx: dx * SCROLL_SPEED, dy: -dy * SCROLL_SPEED });
   }
 }, { passive: false });
@@ -191,6 +242,15 @@ pad.addEventListener("touchmove", (e) => {
 pad.addEventListener("touchend", (e) => {
   e.preventDefault();
   for (const t of e.changedTouches) touches.delete(t.identifier);
+  // scroll-zone cleanup
+  for (const t of e.changedTouches) {
+    const st = scrollTouches.get(t.identifier);
+    if (st) {
+      scrollTouches.delete(t.identifier);
+      const el = document.getElementById(st.zone === "right" ? "szr" : st.zone === "left" ? "szl" : "szt");
+      if (el) el.classList.remove("active");
+    }
+  }
   if (e.touches.length > 0) return;     // wait for all fingers up
 
   if (dragTimer) { clearTimeout(dragTimer); dragTimer = null; }
@@ -206,6 +266,12 @@ pad.addEventListener("touchend", (e) => {
 
 pad.addEventListener("touchcancel", () => {
   touches.clear(); startN = 0;
+  // scroll-zone cleanup
+  for (const [id, st] of scrollTouches) {
+    const el = document.getElementById(st.zone === "right" ? "szr" : st.zone === "left" ? "szl" : "szt");
+    if (el) el.classList.remove("active");
+  }
+  scrollTouches.clear();
   if (dragTimer) { clearTimeout(dragTimer); dragTimer = null; }
   if (dragging) { dragging = false; pad.classList.remove("drag-armed"); send({ t: "up" }); }
 }, { passive: false });
@@ -298,6 +364,7 @@ typebox.addEventListener("keydown", (e) => {
 document.getElementById("more").addEventListener("click", () => {
   document.getElementById("extrarow").classList.toggle("open");
   document.getElementById("editrow").classList.toggle("open");
+  typerow.classList.remove("open");
 });
 
 /* ---------------- key buttons (with hold-to-repeat) ---------------- */

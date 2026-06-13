@@ -11,9 +11,13 @@ A random 4-digit PIN is generated each run unless --pin is given.
 """
 
 import argparse
+import asyncio
 import json
+import os
 import secrets
+import signal
 import socket
+import subprocess
 import ssl
 import sys
 from pathlib import Path
@@ -46,6 +50,26 @@ async def index(request: web.Request) -> web.FileResponse:
 
 async def health(request: web.Request) -> web.Response:
     return web.json_response({"ok": True})
+
+
+async def handle_restart(request: web.Request) -> web.Response:
+    """Restart the server. Requires valid PIN to prevent abuse."""
+    pin = request.query.get("pin", "")
+    if pin != request.app["pin"]:
+        raise web.HTTPForbidden(text="bad pin")
+    # Fork a replacement process, then kill ourselves
+    loop = asyncio.get_event_loop()
+    loop.call_later(0.5, _exec_restart)
+    return web.Response(text="restarting server…")
+
+
+def _exec_restart() -> None:
+    """Spawn a fresh server and exit the current one."""
+    subprocess.Popen(
+        [sys.executable, str(Path(__file__).resolve())] + sys.argv[1:],
+        cwd=os.getcwd(),
+    )
+    os._exit(0)
 
 
 async def ws_handler(request: web.Request) -> web.WebSocketResponse:
@@ -109,6 +133,7 @@ def main() -> None:
     app["pin"] = pin
     app.router.add_get("/", index)
     app.router.add_get("/health", health)
+    app.router.add_get("/restart", handle_restart)
     app.router.add_get("/ws", ws_handler)
     app.router.add_static("/static", STATIC)
 
