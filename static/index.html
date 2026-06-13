@@ -140,7 +140,7 @@
   <div class="bar">
     <button id="mic">🎤</button>
     <button id="more">⋯</button>
-    <button id="enter" data-key="enter">↵</button>
+    <button id="enter">↵</button>
   </div>
 
 <script>
@@ -345,14 +345,17 @@ micBtn.addEventListener("click", () => {
   else { wantListening = true; setLive(true); startRec(); }
 });
 
-/* ---------------- enter key stops transcription ---------------- */
+/* ---------------- enter key stops transcription + sends enter ---------------- */
 document.getElementById("enter").addEventListener("touchstart", (e) => {
+  e.preventDefault();
   if (listening) {
     wantListening = false;
     try { rec.stop(); } catch (_) {}
     setLive(false);
   }
+  send({ t: "key", k: "enter" });
 });
+document.getElementById("enter").addEventListener("click", (e) => { e.preventDefault(); });
 
 /* ---------------- typing fallback ---------------- */
 const typerow = document.getElementById("typerow");
